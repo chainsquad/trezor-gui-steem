@@ -49,7 +49,7 @@ class api {
                 ["transfer", {
                     from: op.from,
                     to: op.to,
-                    amount: op.amount.toFixed(3) + " " + op.asset,
+                    amount: (op.amount/1000).toFixed(3) + " " + op.asset,
                     memo: ""
                 }]
             ],
@@ -59,7 +59,7 @@ class api {
             ref_block_prefix: op.ref_block_prefix,
             extensions: []
         }
-        console.log(tr_object, "expiration:", new Date(op.expiration * 1000));
+        console.log(JSON.stringify(tr_object));
         return this.Api.network_broadcast_api()
         .exec( "broadcast_transaction_with_callback", [null, tr_object]).then(res => {
             console.log("res:", res);
