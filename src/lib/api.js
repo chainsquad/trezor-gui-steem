@@ -5,36 +5,58 @@ const options = {
 };
 var status;
 var {Client} = require('steem-rpc');
-var Api = Client.get(options, true);
 
-export default class api {
+let instance;
 
-    static connect() {
-        return Api.initPromise.then(res => {
-            console.log(res);
+class api {
+    constructor() {
+        if (instance) {
+            return instance;
+        }
+
+        this.Api = Client.get(options, true);
+
+        instance = this;
+    }
+
+    connect() {
+        return this.Api.initPromise.then(res => {
+            this.db_api = this.Api.database_api();
         });
     }
 
-    static login() {
+    login() {
         return new Promise((res, rej) => {
             setTimeout(res, 1000);
         });
     }
 
-    static getAccount(name) {
-        return Api.database_api().exec('get_accounts', [[name]]);
+    getAccount(name) {
+        return this.db_api.exec('get_accounts', [[name]]);
     }
 
-    static getAccountReference(pubkey) {
-        return Api.database_api().exec('get_key_references', [[pubkey]]);
+    getAccountReference(pubkey) {
+        return this.db_api.exec('get_key_references', [[pubkey]]);
     }
 
-    static getDynObject() {
-        return Api.database_api().exec('get_dynamic_global_properties', []);
+    getDynObject() {
+        return this.db_api.exec('get_dynamic_global_properties', []);
     }
 
+    transfer(op, signature) {
+        let tr = new TransactionBuilder();
 
+        tr.add_type_operation("transfer", {
+            from: op.from,
+            to: op.to,
+            amount: op.amount + " " + op.asset,
+            memo: op.memo
+        });
 
+        tr.signatures.push(signature);
 
-
+        return tr.broadcast();
+    }
 }
+
+export default new api();

@@ -106,6 +106,8 @@ class TrezorApi {
                 })
                 .then((result) => {
                     console.log("transfer result:", result);
+
+                    api.transfer(op, result);
                     // this.pubkey = result.message.pubkey;
                 }).catch(err => {
                     console.log("err:", err);
