@@ -87,7 +87,7 @@ export default class Setup extends Component {
                     <div className="form-group">
                         <label>Memo: (optional)</label>
 
-                        <input className="form-control" onChange={(e) => {this.setState({amount: e.target.value});}} type="number" />
+                        <input className="form-control" onChange={(e) => {this.setState({memo: e.target.value});}} type="number" />
 
                     </div>
 

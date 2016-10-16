@@ -73,21 +73,27 @@ class TrezorApi {
                 let head_block_time_string = timeStringToDate( obj.time );
                 var head_block_sec = Math.ceil(head_block_time_string.getTime() / 1000);
                 var now_sec = Math.ceil(Date.now() / 1000);
-
                 // If the user's clock is very far behind, use the head block time.
                 let base_expire = (now_sec - head_block_sec > 30) ? head_block_sec : Math.max(now_sec, head_block_sec);
 
-                let expiration = base_expire + 60; // head block + 1 minute
+                let expiration = base_expire + 30; // head block + 30 secs
+                console.log("head block", head_block_time_string, "now_sec", now_sec, "delta", now_sec - head_block_sec);
 
                 let finalOp = {
                     ...op,
                     ref_block_prefix: new Buffer(obj.head_block_id, 'hex').readUInt32LE(4),
-                    ref_block_number: obj.head_block_number & 0xFFFF,
+                    ref_block_num: obj.head_block_number & 0xFFFF,
                     expiration
                 };
 
                 console.log("final op:", finalOp, this);
 
+                // TEMP
+                // api.transfer(finalOp, "azdazd").then(res => {
+                //
+                // });
+
+                // /TEMP
                 if (!this.device) {
                     throw new Error("You need to be connected to your Trezor");
                 }
@@ -99,19 +105,20 @@ class TrezorApi {
                         finalOp.amount,
                         finalOp.asset,
                         finalOp.memo,
-                        finalOp.ref_block_number,
+                        finalOp.ref_block_num,
                         finalOp.ref_block_prefix,
                         finalOp.expiration
                     );
                 })
                 .then((result) => {
                     console.log("transfer result:", result);
-
-                    api.transfer(op, result).then(res => {
-                        console.log("transfer result:", res);
-                    }).catch(err => {
-                        console.error("transfer error:", err);
-                    })
+                    if (result && result.message) {
+                        api.transfer(finalOp, result.message.signature).then(res => {
+                            console.log("transfer result:", res);
+                        }).catch(err => {
+                            console.error("transfer error:", err);
+                        })
+                    }
                     // this.pubkey = result.message.pubkey;
                 }).catch(err => {
                     console.log("err:", err);

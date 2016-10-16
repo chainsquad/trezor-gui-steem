@@ -5,7 +5,6 @@ const options = {
 };
 var status;
 var {Client} = require('steem-rpc');
-import {TransactionBuilder} from "steemjs-lib";
 
 let instance;
 
@@ -45,18 +44,28 @@ class api {
     }
 
     transfer(op, signature) {
-        let tr = new TransactionBuilder();
-
-        tr.add_type_operation("transfer", {
-            from: op.from,
-            to: op.to,
-            amount: op.amount + " " + op.asset,
-            memo: op.memo
-        });
-
-        tr.signatures.push(signature);
-
-        return tr.broadcast();
+        let tr_object = {
+            operations: [
+                ["transfer", {
+                    from: op.from,
+                    to: op.to,
+                    amount: op.amount.toFixed(3) + " " + op.asset,
+                    memo: ""
+                }]
+            ],
+            signatures: [signature],
+            expiration: new Date(op.expiration * 1000).toISOString().replace(".000Z", ""),
+            ref_block_num: op.ref_block_num,
+            ref_block_prefix: op.ref_block_prefix,
+            extensions: []
+        }
+        console.log(tr_object, "expiration:", new Date(op.expiration * 1000));
+        return this.Api.network_broadcast_api()
+        .exec( "broadcast_transaction_with_callback", [null, tr_object]).then(res => {
+            console.log("res:", res);
+        }).catch(err => {
+            console.error("broadcast error:", err);
+        })
     }
 }
 
