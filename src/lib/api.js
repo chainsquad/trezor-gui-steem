@@ -5,6 +5,7 @@ const options = {
 };
 var status;
 var {Client} = require('steem-rpc');
+import {TransactionBuilder} from "steemjs-lib";
 
 let instance;
 
