@@ -45,7 +45,7 @@ class TrezorApi {
                 }
 
                 device.waitForSessionAndRun(function (session) {
-                    return session.getSteemPubkey([], true)
+                    return session.getSteemPubkey([], false);
                 })
                 .then((result) => {
         		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
