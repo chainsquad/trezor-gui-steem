@@ -70,11 +70,20 @@ class TrezorApi {
         return new Promise((res, rej) => {
             api.getDynObject().then(obj => {
                 console.log("dyn obj", obj, "operation:", op);
+                let head_block_time_string = timeStringToDate( obj.time );
+                var head_block_sec = Math.ceil(head_block_time_string.getTime() / 1000);
+                var now_sec = Math.ceil(Date.now() / 1000);
+
+                // If the user's clock is very far behind, use the head block time.
+                let base_expire = (now_sec - head_block_sec > 30) ? head_block_sec : Math.max(now_sec, head_block_sec);
+
+                let expiration = base_expire + 60; // head block + 1 minute
 
                 let finalOp = {
                     ...op,
                     ref_block_prefix: new Buffer(obj.head_block_id, 'hex').readUInt32LE(4),
-                    ref_block_number: obj.head_block_number & 0xFFFF
+                    ref_block_number: obj.head_block_number & 0xFFFF,
+                    expiration
                 };
 
                 console.log("final op:", finalOp, this);
@@ -84,7 +93,16 @@ class TrezorApi {
                 }
 
                 this.device.waitForSessionAndRun(function (session) {
-                    return session.steemTransfer(finalOp, true)
+                    return session.steemTransfer(
+                        finalOp.from,
+                        finalOp.to,
+                        finalOp.amount,
+                        finalOp.asset,
+                        finalOp.memo,
+                        finalOp.ref_block_number,
+                        finalOp.ref_block_prefix,
+                        finalOp.expiration
+                    );
                 })
                 .then((result) => {
                     console.log("transfer result:", result);
@@ -99,6 +117,16 @@ class TrezorApi {
 }
 
 export default new TrezorApi();
+
+
+function timeStringToDate(time_string) {
+    if( ! time_string) return new Date("1970-01-01T00:00:00.000Z")
+    if( ! /Z$/.test(time_string)) //does not end in Z
+        // https://github.com/cryptonomex/graphene/issues/368
+        time_string = time_string + "Z"
+    return new Date(time_string)
+}
+
 /*
 // DeviceList encapsulates transports, sessions, device enumeration and other
 // low-level things, and provides easy-to-use event interface.
