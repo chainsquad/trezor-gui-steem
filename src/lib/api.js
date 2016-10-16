@@ -12,7 +12,6 @@ export default class api {
     static connect() {
         return Api.initPromise.then(res => {
             console.log(res);
-            this.db_api = Api.database_api();
         });
     }
 
@@ -23,7 +22,15 @@ export default class api {
     }
 
     static getAccount(name) {
-        return this.db_api.exec('get_accounts', [[name]]);
+        return Api.database_api().exec('get_accounts', [[name]]);
+    }
+
+    static getAccountReference(pubkey) {
+        return Api.database_api().exec('get_key_references', [[pubkey]]);
+    }
+
+    static getDynObject() {
+        return Api.database_api().exec('get_dynamic_global_properties', []);
     }
 
 

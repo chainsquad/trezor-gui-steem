@@ -1,48 +1,106 @@
 var trezor = require('./trezor.js');
 var hardeningConstant = 0x80000000;
+import {PublicKey} from "steemjs-lib";
+import api from "./api";
 
 export default class TrezorApi {
 
+    constructor() {
+        this.pubkey = "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542";
+    }
+
     static connect() {
-        this.list = new trezor.DeviceList({debug: false});
+        return new Promise((res, rej) => {
 
-        this.list.on('connect', (device) => {
-            console.log('Connected a device:', device);
-            console.log('Devices:', this.list.asArray());
+            res();
+            this.list = new trezor.DeviceList({debug: false});
 
-            device.on('disconnect', function () {
-                console.log('Disconnected an opened device');
+            this.list.on('connect', (device) => {
+                console.log("device:", device);
+                console.log('Connected a device:', device);
+                console.log('Devices:', this.list.asArray());
+
+                device.on('disconnect', function () {
+                    console.log('Disconnected an opened device');
+                });
+
+                device.on('button', buttonCallback);
+                device.on('passphrase', passphraseCallback);
+                device.on('pin', pinCallback);
+
+                device.on('error', (err) => {
+                    rej(err);
+                })
+
+                // You generally want to filter out devices connected in bootloader mode:
+                if (device.isBootloader()) {
+                   throw new Error('Device is in bootloader mode, re-connected it');
+                }
+
+                device.waitForSessionAndRun(function (session) {
+                    return session.getSteemPubkey([], true)
+                })
+                .then((result) => {
+        		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
+            		// this.pubkey = result.message.pubkey;
+                })
             });
-
-            device.on('button', buttonCallback);
-            device.on('passphrase', passphraseCallback);
-            device.on('pin', pinCallback);
-
-            // You generally want to filter out devices connected in bootloader mode:
-            if (device.isBootloader()) {
-               throw new Error('Device is in bootloader mode, re-connected it');
-            }
-            device.waitForSessionAndRun(function (session) {
-		    console.log( "asfaf" );
-                return session.getSteemPubkey([], true)
-            })
-            .then((result) => {
-		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
-		this.pubkey = result.message.pubkey;
-            })
-        });
+        })
 
         if (window) {
             window.onbeforeunload = function() {
-                list.onbeforeunload();
+                this.list.onbeforeunload();
             }
         }
     }
 
     static getPubKeys() {
         // TODO: get root seed pubkey instead of asking for evey pubkey
-	return this.pubkey;
+        return PublicKey.fromHex("039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542").toString();
     }
+
+    static transfer(op) {
+        return new Promise((res, rej) => {
+            api.getDynObject().then(obj => {
+                console.log("dyn obj", obj, "operation:", op);
+                let head_block_time_string = timeStringToDate( obj.time );
+                var head_block_sec = Math.ceil(head_block_time_string.getTime() / 1000);
+                var now_sec = Math.ceil(Date.now() / 1000);
+
+                // If the user's clock is very far behind, use the head block time.
+                let base_expire = (now_sec - head_block_sec > 30) ? head_block_sec : Math.max(now_sec, head_block_sec);
+
+                let expiration = base_expire + 60; // head block + 1 minute
+
+                let finalOp = {
+                    ...op,
+                    ref_block_prefix: new Buffer(obj.head_block_id, 'hex').readUInt32LE(4),
+                    ref_block_number: obj.head_block_number & 0xFFFF,
+                    expiration
+                };
+
+                console.log("final op:", finalOp);
+                // device.waitForSessionAndRun(function (session) {
+                //     return session.steemTransfer(finalOp, true)
+                // })
+                // .then((result) => {
+                //     console.log("transfer result:", result);
+                //     // this.pubkey = result.message.pubkey;
+                // }).catch(err => {
+                //     console.log("err:", err);
+                // });
+            })
+        })
+
+    }
+}
+
+function timeStringToDate(time_string) {
+    if( ! time_string) return new Date("1970-01-01T00:00:00.000Z")
+    if( ! /Z$/.test(time_string)) //does not end in Z
+        // https://github.com/cryptonomex/graphene/issues/368
+        time_string = time_string + "Z"
+    return new Date(time_string)
 }
 
 /*

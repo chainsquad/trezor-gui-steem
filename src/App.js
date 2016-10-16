@@ -3,9 +3,8 @@ import { render } from 'react-dom'
 import Layout from './Layout';
 import Home from './Home';
 import Setup from './Setup';
+import Transfer from './Transfer';
 import { Router, Route, hashHistory, IndexRoute } from 'react-router'
-import api from './lib/api';
-import trezorApi from "./lib/trezorApi";
 
 // If you use React Router, make this component
 // render <Router> with your routes. Currently,
@@ -15,19 +14,11 @@ import trezorApi from "./lib/trezorApi";
 // https://github.com/reactjs/react-router/issues/2182
 
 export default class App extends Component {
-
-    componentDidMount() {
-        api.connect();
-        trezorApi.connect();
-    }
-
-
     render() {
         return (
             <Router history={hashHistory}>
-
                 <Route path="/" component={Layout}>
-                    <IndexRoute component={Setup} />
+                    <IndexRoute component={Transfer} />
                     <Route path="/setup" component={Setup} />
                 </Route>
             </Router>
