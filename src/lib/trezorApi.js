@@ -4,7 +4,7 @@ var hardeningConstant = 0x80000000;
 export default class TrezorApi {
 
     static connect() {
-        this.list = new trezor.DeviceList({debug: true});
+        this.list = new trezor.DeviceList({debug: false});
 
         this.list.on('connect', (device) => {
             console.log('Connected a device:', device);
@@ -22,24 +22,14 @@ export default class TrezorApi {
             if (device.isBootloader()) {
                throw new Error('Device is in bootloader mode, re-connected it');
             }
-
             device.waitForSessionAndRun(function (session) {
-                console.log("I will call now.");
-            device.waitForSessionAndRun(function (session) {
-                debugger;
-                return session.getSteemPubkey([
-                    (44 | hardeningConstant) >>> 0,
-                    (0 | hardeningConstant) >>> 0,
-                    (0 | hardeningConstant) >>> 0,
-                    0,
-                    0
-                ], 'bitcoin', true)
+		    console.log( "asfaf" );
+                return session.getSteemPubkey([], true)
             })
-            .then(function (result) {
-                console.log('Address:', result);
+            .then((result) => {
+		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
+		this.pubkey = result.message.pubkey;
             })
-        });
-
         });
 
         if (window) {
@@ -49,8 +39,9 @@ export default class TrezorApi {
         }
     }
 
-    getPubKeys() {
-
+    static getPubKeys() {
+        // TODO: get root seed pubkey instead of asking for evey pubkey
+	return this.pubkey;
     }
 }
 
