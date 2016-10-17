@@ -3,6 +3,11 @@ var hardeningConstant = 0x80000000;
 import {PublicKey} from "steemjs-lib";
 import api from "./api";
 
+let DISCONNECTED = 0x00;
+let CONNECTED = 0x01;
+let NEEDS_PIN = 0x02;
+let UNLOCKED = 0x04;
+
 let instance;
 class TrezorApi {
 
@@ -12,13 +17,15 @@ class TrezorApi {
         }
         this.pubkey = "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542";
         this.list = null;
-        this.unlocked = false;
+        this.status = 0x00;
+
+        window.addEventListener("message", (message, a) => {
+            console.log("message:", message, a)
+        })
         return instance;
     }
 
     connect(cb) {
-
-        // res();
         this.list = new trezor.DeviceList({debug: false});
 
         // This gets called on general error of the devicelist (no transport, etc)
@@ -27,33 +34,59 @@ class TrezorApi {
         });
 
         this.list.on('connect', (device) => {
+            device.clearSession = true;
+            this.status += CONNECTED;
+            if (device.features.pin_cached) {
+                this.status += UNLOCKED;
+            }
             this.device = device;
-            console.log("device:", device);
-            console.log('Connected a device:', device);
-            console.log('Devices:', this.list.asArray());
+            console.log("Connected device:", device, "status:", this.status);
+            // console.log('Connected a device:', device);
+            // console.log('Devices:', this.list.asArray());
 
-            device.on('disconnect', function () {
+            device.on('disconnect', () => {
                 console.log('Disconnected an opened device');
+                this.status = DISCONNECTED;
                 if (cb) {
-                    cb(false);
+                    cb(this.status);
                 }
             });
 
             device.on('button', buttonCallback);
             device.on('passphrase', passphraseCallback);
-            device.on('pin', pinCallback);
+            device.on('pin', (type, callback) => {
+                console.log("pin");
+                this.status += NEEDS_PIN;
+                this.pinCallback = callback;
+                // We should ask the user for PIN and send back number positions encoded as string '1234'.
+                // Where 1 is the bottom left position, 7 is the top left position, etc.
+                // 7 8 9
+                // 4 5 6
+                // 1 2 3
+            });
 
             device.on('error', (err) => {
-                rej(err);
+                console.log("device error:", err);
             });
+
+            device.on('receive', (e, b) => {
+                console.log("receive", e, b);
+            });
+
+            let handleReceive = (type, code) => {
+                switch (code.message) {
+                    case "Invalid PIN":
+                        console.log("invalid pin");
+                        break;
+                }
+            }
 
             // You generally want to filter out devices connected in bootloader mode:
             if (device.isBootloader()) {
                throw new Error('Device is in bootloader mode, re-connected it');
             }
 
-            device.waitForSessionAndRun(function (session) {
-                console.log("got session:", session);
+            device.waitForSessionAndRun((session) => {
                 // return session.getSteemPubkey([], false);
                 return session.getAddress([
                     (44 | hardeningConstant) >>> 0,
@@ -61,27 +94,30 @@ class TrezorApi {
                     (0 | hardeningConstant) >>> 0,
                     0,
                     0
-                ], 'bitcoin', true).then(res => {
-                    console.log("session res:", res);
-                })
+                ], 'bitcoin', false);
             })
             .then((result) => {
+                if (!(this.status & UNLOCKED)) this.status += UNLOCKED;
+
+                if (cb) {
+                    cb(this.status);
+                }
                 console.log("session result:", result);
                 if (result && result.message) {
         		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
-            		// this.pubkey = result.message.pubkey;
+            		this.pubkey = result.message.pubkey;
                 }
             });
 
             if (cb) {
-                cb(true && this.unlocked);
+                cb(this.status);
             }
 
         });
 
 
         if (window) {
-            window.onbeforeunload = function() {
+            window.onbeforeunload = () => {
                 this.list.onbeforeunload();
             }
         }
@@ -90,6 +126,16 @@ class TrezorApi {
     getPubKeys() {
         // TODO: get root seed pubkey instead of asking for evey pubkey
         return PublicKey.fromHex(this.pubkey).toString();
+    }
+
+    sendPin(pin) {
+        console.log("sendPin:", pin, "pinCallback", this.pinCallback);
+
+        if (this.pinCallback) {
+            this.pinCallback(null, pin);
+        }
+        this.pinCallback = null;
+        // this.device.
     }
 
     transfer(op) {
@@ -125,6 +171,7 @@ class TrezorApi {
                 }
 
                 this.device.waitForSessionAndRun(function (session) {
+                    session.clearSession();
                     return session.steemTransfer(
                         finalOp.from,
                         finalOp.to,
@@ -259,19 +306,6 @@ function passphraseCallback(callback) {
     callback(null, '');
 }
 
-/**
- * @param {string} type
- * @param {Function<Error, string>} callback
- */
-function pinCallback(type, callback) {
-    console.log("pinCallback:", type, callback);
-    // debugger;
-    // We should ask the user for PIN and send back number positions encoded as string '1234'.
-    // Where 1 is the bottom left position, 7 is the top left position, etc.
-    // 7 8 9
-    // 4 5 6
-    // 1 2 3
-    throw new Error('Nothing defined');
-}
+
 
 // you should do this to release devices on reload

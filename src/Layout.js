@@ -9,7 +9,8 @@ export default class Layout extends React.Component {
 
         this.state = {
             wsConnected: false,
-            trezorConnected: false
+            trezorConnected: false,
+            trezorUnlocked: false
         }
     }
 
@@ -27,21 +28,21 @@ export default class Layout extends React.Component {
             console.log('trezor connection status:', status);
 
             this.setState({
-                trezorConnected: status
+                trezorConnected: !!(status & 0x01),
+                trezorPin: !!(status & 0x02),
+                trezorUnlocked: !!(status & 0x04)
             });
         }
         trezorApi.connect(trezorConnectionCallback)
-
-
     }
 
     render() {
         let {children} = this.props;
-        let {wsConnected, trezorConnected} = this.state;
-
+        let {wsConnected, trezorConnected, trezorUnlocked, trezorPin} = this.state;
+        console.log("layout status:", this.state);
         return (
             <div className="container-fluid">
-                {!trezorConnected ? <TrezorConnect connected={trezorConnected} /> : null}
+                {!trezorConnected || !trezorUnlocked ? <TrezorConnect needsPin={trezorPin} unlocked={trezorUnlocked} connected={trezorConnected} /> : null}
                 {!wsConnected ? <div>Connecting to wss://steem.node.ws</div> : children}
             </div>
         )
