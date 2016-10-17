@@ -5,6 +5,7 @@ import Home from './Home';
 import Setup from './Setup';
 import Transfer from './Transfer';
 import { Router, Route, hashHistory, IndexRoute } from 'react-router'
+require("./assets/app.scss");
 
 // If you use React Router, make this component
 // render <Router> with your routes. Currently,

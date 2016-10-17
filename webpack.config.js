@@ -22,9 +22,16 @@ module.exports = {
       test: /\.js$/,
       loaders: ['babel'],
       include: path.join(__dirname, 'src')
-  }, {
+  },
+  {
       test: /.json$/,
       loaders: ['json']
-  }]
+  },
+  { test: /\.css$/, loader: "style-loader!css-loader" },
+  {
+    test: /\.scss$/,
+    loader: "style!css!sass?outputStyle=expanded"
+  },
+  ]
   }
 };

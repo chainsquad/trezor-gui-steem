@@ -1,4 +1,4 @@
-var trezor = require('./trezor.js');
+var trezor = require('./trezor_original.js');
 var hardeningConstant = 0x80000000;
 import {PublicKey} from "steemjs-lib";
 import api from "./api";
@@ -12,6 +12,7 @@ class TrezorApi {
         }
         this.pubkey = "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542";
         this.list = null;
+        this.unlocked = false;
         return instance;
     }
 
@@ -19,6 +20,11 @@ class TrezorApi {
 
         // res();
         this.list = new trezor.DeviceList({debug: false});
+
+        // This gets called on general error of the devicelist (no transport, etc)
+        this.list.on('error', function (error) {
+            console.error('List error:', error);
+        });
 
         this.list.on('connect', (device) => {
             this.device = device;
@@ -39,7 +45,7 @@ class TrezorApi {
 
             device.on('error', (err) => {
                 rej(err);
-            })
+            });
 
             // You generally want to filter out devices connected in bootloader mode:
             if (device.isBootloader()) {
@@ -47,15 +53,28 @@ class TrezorApi {
             }
 
             device.waitForSessionAndRun(function (session) {
-                return session.getSteemPubkey([], false);
+                console.log("got session:", session);
+                // return session.getSteemPubkey([], false);
+                return session.getAddress([
+                    (44 | hardeningConstant) >>> 0,
+                    (0 | hardeningConstant) >>> 0,
+                    (0 | hardeningConstant) >>> 0,
+                    0,
+                    0
+                ], 'bitcoin', true).then(res => {
+                    console.log("session res:", res);
+                })
             })
             .then((result) => {
-    		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
-        		this.pubkey = result.message.pubkey;
+                console.log("session result:", result);
+                if (result && result.message) {
+        		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
+            		// this.pubkey = result.message.pubkey;
+                }
             });
 
             if (cb) {
-                cb(true);
+                cb(true && this.unlocked);
             }
 
         });
@@ -202,10 +221,7 @@ list.on('disconnect', function (device) {
     console.log('Devices:', list.asArray());
 });
 
-// This gets called on general error of the devicelist (no transport, etc)
-list.on('error', function (error) {
-    console.error('List error:', error);
-});
+
 
 // On connecting unacquired device
 list.on('connectUnacquired', function (device) {
@@ -248,6 +264,8 @@ function passphraseCallback(callback) {
  * @param {Function<Error, string>} callback
  */
 function pinCallback(type, callback) {
+    console.log("pinCallback:", type, callback);
+    // debugger;
     // We should ask the user for PIN and send back number positions encoded as string '1234'.
     // Where 1 is the bottom left position, 7 is the top left position, etc.
     // 7 8 9
