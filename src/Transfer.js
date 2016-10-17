@@ -41,7 +41,6 @@ export default class Setup extends Component {
 
     onSubmit(e) {
         e.preventDefault();
-        console.log("submit");
         let amount = Math.floor(this.state.amount * 1000);
         trezorApi.transfer({
             to: this.state.toAccount,
@@ -60,7 +59,7 @@ export default class Setup extends Component {
                 <div className="col-xs-8 col-xs-offset-2">
                     <h1>Steem Transfer</h1>
 
-                    <div>Your pubkey: <strong>{trezorApi.getPubKeys()}</strong></div>
+                    <div>Your Trezor's Public Key: <strong>{trezorApi.getPubKeys()}</strong></div>
                     <br/>
                     {this.state.belongsTo ? <div>This key belongs to: <strong>{this.state.belongsTo}</strong></div> : null}
                     <br/>

@@ -1,6 +1,7 @@
 import React from 'react';
 import api from './lib/api';
 import trezorApi from "./lib/trezorApi";
+import TrezorConnect from "./TrezorConnect";
 
 export default class Layout extends React.Component {
     constructor() {
@@ -13,22 +14,25 @@ export default class Layout extends React.Component {
     }
 
     componentWillMount() {
+        // Connect the WS rpc
         api.connect().then(() => {
             console.log("now connected");
             this.setState({
                 wsConnected: true
             });
-        })
-        trezorApi.connect().then(res => {
+        });
+
+        // Connect to the Trezor
+        let trezorConnectionCallback = (status) => {
+            console.log('trezor connection status:', status);
+
             this.setState({
-                trezorConnected: true
+                trezorConnected: status
             });
-            console.log('connected');
-            let pubKey = trezorApi.getPubKeys();
-            console.log("got pubKey", pubKey);
-        }).catch(err => {
-            console.log("trezor api error:", err);
-        })
+        }
+        trezorApi.connect(trezorConnectionCallback)
+
+
     }
 
     render() {
@@ -37,6 +41,7 @@ export default class Layout extends React.Component {
 
         return (
             <div className="container-fluid">
+                {!trezorConnected ? <TrezorConnect connected={trezorConnected} /> : null}
                 {!wsConnected ? <div>Connecting to wss://steem.node.ws</div> : children}
             </div>
         )

@@ -15,44 +15,51 @@ class TrezorApi {
         return instance;
     }
 
-    connect() {
-        return new Promise((res, rej) => {
+    connect(cb) {
 
-            res();
-            this.list = new trezor.DeviceList({debug: false});
+        // res();
+        this.list = new trezor.DeviceList({debug: false});
 
-            this.list.on('connect', (device) => {
-                this.device = device;
-                console.log("device:", device);
-                console.log('Connected a device:', device);
-                console.log('Devices:', this.list.asArray());
+        this.list.on('connect', (device) => {
+            this.device = device;
+            console.log("device:", device);
+            console.log('Connected a device:', device);
+            console.log('Devices:', this.list.asArray());
 
-                device.on('disconnect', function () {
-                    console.log('Disconnected an opened device');
-                });
-
-                device.on('button', buttonCallback);
-                device.on('passphrase', passphraseCallback);
-                device.on('pin', pinCallback);
-
-                device.on('error', (err) => {
-                    rej(err);
-                })
-
-                // You generally want to filter out devices connected in bootloader mode:
-                if (device.isBootloader()) {
-                   throw new Error('Device is in bootloader mode, re-connected it');
+            device.on('disconnect', function () {
+                console.log('Disconnected an opened device');
+                if (cb) {
+                    cb(false);
                 }
-
-                device.waitForSessionAndRun(function (session) {
-                    return session.getSteemPubkey([], false);
-                })
-                .then((result) => {
-        		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
-            		this.pubkey = result.message.pubkey;
-                })
             });
-        })
+
+            device.on('button', buttonCallback);
+            device.on('passphrase', passphraseCallback);
+            device.on('pin', pinCallback);
+
+            device.on('error', (err) => {
+                rej(err);
+            })
+
+            // You generally want to filter out devices connected in bootloader mode:
+            if (device.isBootloader()) {
+               throw new Error('Device is in bootloader mode, re-connected it');
+            }
+
+            device.waitForSessionAndRun(function (session) {
+                return session.getSteemPubkey([], false);
+            })
+            .then((result) => {
+    		    // "039f3530fe86bdf592f63fb3ae80aeaac88e9c5ef5bce36bf49a596961206fd542"
+        		this.pubkey = result.message.pubkey;
+            });
+
+            if (cb) {
+                cb(true);
+            }
+
+        });
+
 
         if (window) {
             window.onbeforeunload = function() {
@@ -69,7 +76,7 @@ class TrezorApi {
     transfer(op) {
         return new Promise((res, rej) => {
             api.getDynObject().then(obj => {
-                console.log("dyn obj", obj, "operation:", op);
+                // console.log("dyn obj", obj, "operation:", op);
                 let head_block_time_string = timeStringToDate( obj.time );
                 var head_block_sec = Math.ceil(head_block_time_string.getTime() / 1000);
                 var now_sec = Math.ceil(Date.now() / 1000);
@@ -77,7 +84,7 @@ class TrezorApi {
                 let base_expire = (now_sec - head_block_sec > 30) ? head_block_sec : Math.max(now_sec, head_block_sec);
 
                 let expiration = base_expire + 30; // head block + 30 secs
-                console.log("head block", head_block_time_string, "now_sec", now_sec, "delta", now_sec - head_block_sec);
+                // console.log("head block", head_block_time_string, "now_sec", now_sec, "delta", now_sec - head_block_sec);
 
                 let finalOp = {
                     ...op,
@@ -86,12 +93,12 @@ class TrezorApi {
                     expiration
                 };
 
-                console.log("final op:", finalOp, this);
+                // console.log("final op:", finalOp);
 
                 // TEMP
-                // api.transfer(finalOp, "azdazd").then(res => {
-                //
-                // });
+                api.transfer(finalOp, "azdazd").then(res => {
+
+                });
 
                 // /TEMP
                 if (!this.device) {
